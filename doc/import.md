@@ -106,6 +106,10 @@ UA 使用 `fake_useragent` 库自动生成
 
 `ViewWork(Token: str, WorkID: str) -> bool`
 
+> [!WARNING]
+>
+> 编程猫官方已对此API做出限制，具体信息：[点击此处](https://shequ.codemao.cn/community/1645000)
+
 ### 再创作作品
 
 `ForkWork(Path: str, WorkID: str) -> bool`
