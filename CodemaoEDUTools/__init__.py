@@ -9,6 +9,7 @@ GitHub: https://github.com/Wangs-official/CodemaoEDUTools/
 
 开发者不对您使用本项目造成的风险负责，请自行考虑是否使用，谢谢！
 """
+
 from importlib.metadata import version, PackageNotFoundError
 
 try:
@@ -130,48 +131,38 @@ student_names = [
 
 # 请在创建新功能后更新此处！
 
-# API函数
-from .api import (  # noqa: E402
-    PostAPI,
-    PostWithoutTokenAPI,
-    PostEduAPI,
-    GetAPI,
-    GetWithoutTokenAPI,
-    PutAPI,
-    DeleteAPI,
-)
-
-# 用户功能
-from .user import (  # noqa: E402
-    GetUserToken,
-    CheckToken,
-    SignatureUser,
-    FollowUser,
-)
-
-# 作品功能
-from .work import (  # noqa: E402
-    GetUserWork,
-    LikeWork,
-    CollectionWork,
-    ReportWork,
-    SendReviewToWork,
-    TopReview,
-    UnTopReview,
-    ViewWork,
-    ForkWork,
-)
-
-# EDU功能
-from .edu import (  # noqa: E402
-    CreateClassOnEdu,
-    CreateStudentOnEdu,
-    MergeStudentXls,
-    LoginUseEdu,
-)
-
-# 导入命令行
-from .cli import CreateParser  # noqa: E402
+_LAZY_IMPORTS = {
+    # API
+    "PostAPI": (".api", "PostAPI"),
+    "PostWithoutTokenAPI": (".api", "PostWithoutTokenAPI"),
+    "PostEduAPI": (".api", "PostEduAPI"),
+    "GetAPI": (".api", "GetAPI"),
+    "GetWithoutTokenAPI": (".api", "GetWithoutTokenAPI"),
+    "PutAPI": (".api", "PutAPI"),
+    "DeleteAPI": (".api", "DeleteAPI"),
+    # 用户
+    "GetUserToken": (".user", "GetUserToken"),
+    "CheckToken": (".user", "CheckToken"),
+    "SignatureUser": (".user", "SignatureUser"),
+    "FollowUser": (".user", "FollowUser"),
+    # 作品
+    "GetUserWork": (".work", "GetUserWork"),
+    "LikeWork": (".work", "LikeWork"),
+    "CollectionWork": (".work", "CollectionWork"),
+    "ReportWork": (".work", "ReportWork"),
+    "SendReviewToWork": (".work", "SendReviewToWork"),
+    "TopReview": (".work", "TopReview"),
+    "UnTopReview": (".work", "UnTopReview"),
+    "ViewWork": (".work", "ViewWork"),
+    "ForkWork": (".work", "ForkWork"),
+    # CodemaoEDU
+    "CreateClassOnEdu": (".edu", "CreateClassOnEdu"),
+    "CreateStudentOnEdu": (".edu", "CreateStudentOnEdu"),
+    "MergeStudentXls": (".edu", "MergeStudentXls"),
+    "LoginUseEdu": (".edu", "LoginUseEdu"),
+    # 命令行
+    "CreateParser": (".cli", "CreateParser"),
+}
 
 # 请在创建新功能后更新此处！导入控制
 __all__ = [
@@ -198,6 +189,7 @@ __all__ = [
     # 作品
     "GetUserWork",
     "LikeWork",
+    "LikeReview",
     "CollectionWork",
     "ReportWork",
     "SendReviewToWork",
@@ -205,7 +197,7 @@ __all__ = [
     "UnTopReview",
     "ViewWork",
     "ForkWork",
-    # 教育版
+    # CodemaoEDU
     "CreateClassOnEdu",
     "CreateStudentOnEdu",
     "MergeStudentXls",
@@ -213,6 +205,22 @@ __all__ = [
     # 命令行
     "CreateParser",
 ]
+
+
+def __getattr__(name: str):
+    if name in _LAZY_IMPORTS:
+        module_name, attr_name = _LAZY_IMPORTS[name]
+        from importlib import import_module
+
+        module = import_module(module_name, package=__name__)
+        value = getattr(module, attr_name)
+        globals()[name] = value
+        return value
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
+
+def __dir__() -> list[str]:
+    return sorted(list(globals().keys()) + list(_LAZY_IMPORTS.keys()))
 
 
 # 包函数

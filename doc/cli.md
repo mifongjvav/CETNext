@@ -48,6 +48,10 @@
 
 `cet like-work -tf (Token文件路径) -wid {作品ID}`
 
+### 评论点赞
+
+`cet like-review -tf (Token文件路径) -wid <作品ID> -cid {评论ID}`
+
 ### 作品收藏
 
 `cet collect-work -tf (Token文件路径) -wid {作品ID}`

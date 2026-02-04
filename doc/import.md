@@ -78,6 +78,10 @@ UA 使用 `fake_useragent` 库自动生成
 
 `LikeWork(Path: str, WorkID: str) -> bool`
 
+### 点赞评论
+
+`def LikeReview(Path: str, WorkID: str, CommentID: str) -> bool:`
+
 ### 收藏作品
 
 `CollectionWork(Path: str, WorkID: str) -> bool`

@@ -12,19 +12,11 @@ def main():
     args = parser.parse_args()
 
     if args.command is None:
-        logging.info(f'''
- ██████╗ ██████╗ ██████╗ ███████╗███╗   ███╗ █████╗  ██████╗ ███████╗██████╗ ██╗   ██╗████████╗ ██████╗  ██████╗ ██╗     ███████╗
-██╔════╝██╔═══██╗██╔══██╗██╔════╝████╗ ████║██╔══██╗██╔═══██╗██╔════╝██╔══██╗██║   ██║╚══██╔══╝██╔═══██╗██╔═══██╗██║     ██╔════╝
-██║     ██║   ██║██║  ██║█████╗  ██╔████╔██║███████║██║   ██║█████╗  ██║  ██║██║   ██║   ██║   ██║   ██║██║   ██║██║     ███████╗
-██║     ██║   ██║██║  ██║██╔══╝  ██║╚██╔╝██║██╔══██║██║   ██║██╔══╝  ██║  ██║██║   ██║   ██║   ██║   ██║██║   ██║██║     ╚════██║
-╚██████╗╚██████╔╝██████╔╝███████╗██║ ╚═╝ ██║██║  ██║╚██████╔╝███████╗██████╔╝╚██████╔╝   ██║   ╚██████╔╝╚██████╔╝███████╗███████║
- ╚═════╝ ╚═════╝ ╚═════╝ ╚══════╝╚═╝     ╚═╝╚═╝  ╚═╝ ╚═════╝ ╚══════╝╚═════╝  ╚═════╝    ╚═╝    ╚═════╝  ╚═════╝ ╚══════╝╚══════╝
--==============================================================================-
+        logging.info(f"""
 欢迎使用CodemaoEDUTools CLI Version {__version__}
 您正在使用的是 CodemaoEDUTools 的命令行版本
 输入 "-h" 获得使用帮助
--==============================================================================-
-''')
+""")
 
     if args.command == "check-token":
         from CodemaoEDUTools import CheckToken
@@ -70,6 +62,14 @@ def main():
             if LikeWork(args.token_file, i):
                 logging.info("执行成功")
 
+    if args.command == "like-review":
+        from CodemaoEDUTools import LikeReview
+
+        for i in args.comment_id:
+            logging.info(f"请稍后，正在执行：{i}")
+            if LikeReview(args.token_file, args.work_id, i):
+                logging.info("执行成功")
+
     if args.command == "collect-work":
         from CodemaoEDUTools import CollectionWork
 
@@ -101,7 +101,7 @@ def main():
         logging.info("请稍后...")
         if TopReview(args.one_token, args.work_id, args.comment_id):
             logging.info("执行成功")
-    
+
     if args.command == "unreview-top":
         from CodemaoEDUTools import UnTopReview
 
