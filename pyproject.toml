@@ -1,9 +1,9 @@
 [project]
 name = "codemaoedutools"
-version = "2.1.6"
+version = "2.2.0"
 description = '为编程猫社区的"老师"们提供更便捷的API调用方案，且用且珍惜'
 readme = "README.md"
-license = "MIT"
+license = "Apache-2.0"
 requires-python = ">=3.10"
 dependencies = [
     "coloredlogs>=15.0",

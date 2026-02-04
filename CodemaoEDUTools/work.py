@@ -60,6 +60,37 @@ def LikeWork(Path: str, WorkID: str) -> bool:
         return all(results)
 
 
+def LikeReview(Path: str, WorkID: str, CommentID: str) -> bool:
+    """点赞评论"""
+    if not os.path.exists(Path):
+        logger.error(f"找不到Token文件: {Path}")
+        return False
+    elif CheckToken(Path) == 0:
+        logger.warning("可用的Token数为0")
+        return False
+    else:
+        with open(Path, "r") as f:
+            TokenList = [line.strip() for line in f if line.strip()]
+            f.close()
+
+        def CallToAPI_LikeReview(Token: str) -> bool:
+            try:
+                response = PostAPI(
+                    Path=f"/creation-tools/v1/works/{WorkID}/comment/{CommentID}/liked",
+                    PostData={},
+                    Token=Token,
+                )
+                return response.status_code == 201
+            except Exception as e:
+                logger.error(f"请求异常: {str(e)}")
+                return False
+
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            results = list(executor.map(CallToAPI_LikeReview, TokenList))
+
+        return all(results)
+
+
 def CollectionWork(Path: str, WorkID: str) -> bool:
     """收藏作品"""
     if not os.path.exists(Path):
@@ -172,6 +203,7 @@ def TopReview(Token: str, WorkID: str, CommentID: str) -> bool:
     except Exception as e:
         logger.error(f"请求异常：{str(e)}")
         return False
+
 
 def UnTopReview(Token: str, WorkID: str, CommentID: str) -> bool:
     """取消置顶评论（越权）"""

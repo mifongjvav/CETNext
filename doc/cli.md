@@ -48,6 +48,10 @@
 
 `cet like-work -tf (Token文件路径) -wid {作品ID}`
 
+### 评论点赞
+
+`cet like-review -tf (Token文件路径) -wid <作品ID> -cid {评论ID}`
+
 ### 作品收藏
 
 `cet collect-work -tf (Token文件路径) -wid {作品ID}`
@@ -95,7 +99,8 @@
 `cet view-work -wid <作品ID> -t <单个可用Token>`
 
 - 此功能只需要一个 Token，请自行填写。默认一直执行，如果需要停止，请 Ctrl+C
-
+- **编程猫官方已对此API做出限制，具体信息：[点击此处](https://shequ.codemao.cn/community/1645000)**
+  
 ### 再创作作品
 
 `cet fork-work -wid {作品ID}`

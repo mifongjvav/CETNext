@@ -78,6 +78,10 @@ UA 使用 `fake_useragent` 库自动生成
 
 `LikeWork(Path: str, WorkID: str) -> bool`
 
+### 点赞评论
+
+`def LikeReview(Path: str, WorkID: str, CommentID: str) -> bool:`
+
 ### 收藏作品
 
 `CollectionWork(Path: str, WorkID: str) -> bool`
@@ -105,6 +109,10 @@ UA 使用 `fake_useragent` 库自动生成
 ### 浏览作品（单刷）
 
 `ViewWork(Token: str, WorkID: str) -> bool`
+
+> [!WARNING]
+>
+> 编程猫官方已对此API做出限制，具体信息：[点击此处](https://shequ.codemao.cn/community/1645000)
 
 ### 再创作作品
 
