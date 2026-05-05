@@ -6,11 +6,10 @@ import json
 import logging
 import os
 from concurrent.futures import ThreadPoolExecutor
-from typing import Any
 
 from .api import PostAPI, PostWithoutTokenAPI
 
-from CodemaoEDUTools import max_workers, report_readtoken_line
+from . import max_workers
 
 logger = logging.getLogger(__name__)
 

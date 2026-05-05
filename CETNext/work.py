@@ -11,7 +11,7 @@ from .api import PostAPI, GetWithoutTokenAPI, PutAPI, GetAPI, DeleteAPI
 from .user import CheckToken
 
 
-from CodemaoEDUTools import max_workers, report_readtoken_line
+from . import max_workers, report_readtoken_line
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +23,7 @@ def GetUserWork(UserID: str) -> str | bool:
     )
     if response.status_code == 200:
         ids = [str(item["id"]) for item in json.loads(response.text)["items"]]
-        return " ".join(ids)
+        return ids
     else:
         logger.error(
             f"请求失败，状态码: {response.status_code}, 响应: {response.text[:100]}"

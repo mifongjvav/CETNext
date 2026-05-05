@@ -58,6 +58,7 @@ def MergeStudentXls(InputFolder: str, OutputFile: str) -> bool:
     try:
         import pandas as pd
         from openpyxl import Workbook
+
         if os.path.exists(InputFolder):
             main_wb = Workbook()
             main_ws = main_wb.active
@@ -80,6 +81,7 @@ def MergeStudentXls(InputFolder: str, OutputFile: str) -> bool:
 def LoginUseEdu(InputXlsx: str, OutputFile: str, Signature: bool = False) -> bool:
     """登录Edu账号"""
     from openpyxl import load_workbook
+
     CannotLogin = 0
     if Signature:
         logger.info("已开启同时签署用户协议功能！")

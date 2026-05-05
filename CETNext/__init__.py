@@ -1,22 +1,34 @@
 """
-CodemaoEDUTools
+CETNext
 ==================================
-作者: WangZixu
-GitHub: https://github.com/Wangs-official/CodemaoEDUTools/
+作者: Argon
+GitHub: https://github.com/mifongjvav/CETNext
 
-欢迎使用 CodemaoEDUTools!
-这是一个Python包，你可以使用 import CodemaoEDUTools 来导入它
+欢迎使用 CETNext!
+这是一个Python包，你可以使用 import CETNext 来导入它
 
 开发者不对您使用本项目造成的风险负责，请自行考虑是否使用，谢谢！
 """
+# 版权所有 (C) 2026 Argon
+# 根据 Apache 2.0 许可证发布
+#
+# 修改声明：
+# 本文件基于原作者 WangZixu（2025）的作品修改而来。
+# 主要修改内容：
+# 将原有的 argparse CLI 完全重写为 click 库实现
+# 添加 @click.group() 主命令组及所有子命令装饰器
+# 使用 click.option 和 click.pass_context 替代 argparse.ArgumentParser
+# 将全局参数 --token-file 通过上下文对象传递给子命令
+# 修改 __main__.py 入口调用方式
+# 修改日期：2026-05-05
 
 from importlib.metadata import version, PackageNotFoundError
 
 try:
-    __version__ = version("CodemaoEDUTools")
+    __version__ = version("CETNext")
 except PackageNotFoundError:
-    __version__ = "0.0.0"
-__author__ = "WangZixu"
+    __version__ = "1.0.0"
+__author__ = "Argon"
 __description__ = "为编程猫社区的“老师”们提供更便捷的API调用方案，且用且珍惜"
 
 # 线程配置
@@ -160,8 +172,6 @@ _LAZY_IMPORTS = {
     "CreateStudentOnEdu": (".edu", "CreateStudentOnEdu"),
     "MergeStudentXls": (".edu", "MergeStudentXls"),
     "LoginUseEdu": (".edu", "LoginUseEdu"),
-    # 命令行
-    "CreateParser": (".cli", "CreateParser"),
 }
 
 # 请在创建新功能后更新此处！导入控制
@@ -202,8 +212,6 @@ __all__ = [
     "CreateStudentOnEdu",
     "MergeStudentXls",
     "LoginUseEdu",
-    # 命令行
-    "CreateParser",
 ]
 
 
@@ -232,13 +240,13 @@ def get_version() -> str:
 def info() -> str:
     """显示包信息"""
     return f"""
-CodemaoEDUTools v{__version__}
+CETNext v{__version__}
 作者: {__author__}
-GitHub: https://github.com/Wangs-official/CodemaoEDUTools/
+GitHub: https://github.com/mifongjvav/CETNext/
 
 导入方式:
-    import CodemaoEDUTools
-    from CodemaoEDUTools import *
+    import CETNext
+    from CETNext import * # 不推荐
 
 命令行使用:
     python main.py check-token
@@ -252,7 +260,7 @@ GitHub: https://github.com/Wangs-official/CodemaoEDUTools/
 def about() -> str:
     """显示关于信息"""
     return f"""
-CodemaoEDUTools v{__version__}
+CETNext v{__version__}
 作者: {__author__}
-GitHub: https://github.com/Wangs-official/CodemaoEDUTools/
+GitHub: https://github.com/mifongjvav/CETNext/
 """
