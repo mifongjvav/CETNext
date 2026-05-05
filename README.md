@@ -2,7 +2,7 @@
 
 全新版本，全新体验，欢迎使用 CETNext！
 
-为编程猫社区的"老师"们提供CETNext的打赢复活赛版，且用且珍惜
+为编程猫社区的"老师"们提供CodemaoEDUTools的打赢复活赛版，且用且珍惜
 
 ## 🔧 安装
 
@@ -81,6 +81,6 @@
 
 ## ❤️ 感谢各位贡献者
 
-<a href="https://github.com/wangs-official/CETNext/graphs/contributors">
-  <img src="https://contrib.rocks/image?repo=wangs-official/CETNext" />
+<a href="https://github.com/mifongjvav/CETNext/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=mifongjvav/CETNext" />
 </a><br/><br/>
