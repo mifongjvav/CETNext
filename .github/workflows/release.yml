@@ -2,6 +2,7 @@ name: Release & Publish PyPI
 
 permissions:
   contents: write
+  id-token: write  # 添加这一行，Trusted Publisher 必需
 
 on:
   push:
@@ -104,7 +105,7 @@ jobs:
           pip install uv
           uv venv
           uv sync
-          uv add "packaging>=23.1" build twine  # 确保安装 twine
+          uv add "packaging>=23.1" build
 
       # ======================
       # Build release archives
@@ -172,19 +173,9 @@ jobs:
             dist/*.whl
 
       # ======================
-      # Publish to PyPI
+      # Publish to PyPI (Trusted Publisher)
       # ======================
       - name: Publish to PyPI
-        env:
-          TWINE_USERNAME: __token__
-          TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
-        run: |
-          if [ -d dist ] && [ -n "$(ls -A dist/* 2>/dev/null)" ]; then
-            echo "🚀 Uploading to PyPI..."
-            # 确保 twine 可用
-            uv pip install twine
-            uv run python -m twine upload dist/*
-          else
-            echo "⚠️ No distribution files found, skipping PyPI upload"
-            ls -la dist/ 2>/dev/null || echo "dist directory does not exist"
-          fi
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          verbose: true
