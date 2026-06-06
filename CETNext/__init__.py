@@ -20,14 +20,15 @@ GitHub: https://github.com/mifongjvav/CETNext
 # 使用 click.option 和 click.pass_context 替代 argparse.ArgumentParser
 # 将全局参数 --token-file 通过上下文对象传递给子命令
 # 修改 __main__.py 入口调用方式
-# 修改日期：2026-05-05
+# 加入新功能
+# 修改日期：2026-06-06
 
 from importlib.metadata import version, PackageNotFoundError
 
 try:
     __version__ = version("CETNext")
 except PackageNotFoundError:
-    __version__ = "1.0.0"
+    __version__ = "1.1.0"
 __author__ = "Argon"
 __description__ = "为编程猫社区的“老师”们提供更便捷的API调用方案，且用且珍惜"
 
@@ -159,6 +160,10 @@ _LAZY_IMPORTS = {
     "FollowUser": (".user", "FollowUser"),
     # 作品
     "GetUserWork": (".work", "GetUserWork"),
+    "GetStudioWork": (
+        ".work",
+        "GetStudioWork",
+    ),
     "LikeWork": (".work", "LikeWork"),
     "CollectionWork": (".work", "CollectionWork"),
     "ReportWork": (".work", "ReportWork"),
@@ -198,6 +203,7 @@ __all__ = [
     "FollowUser",
     # 作品
     "GetUserWork",
+    "GetStudioWork",
     "LikeWork",
     "LikeReview",
     "CollectionWork",
