@@ -290,7 +290,8 @@ def collect_work(obj: dict, work_id: tuple):
 
 @cli.command(
     "report-work",
-    help=f"批量举报一个或多个作品（每个作品使用Token文件中的前{_ReportReadtokenLine}行Token）。作品ID支持逗号分隔、JSON或Python列表。",
+    short_help=f"批量举报一个或多个作品（使用Token文件中的前{_ReportReadtokenLine}行Token）",
+    help=f"批量举报一个或多个作品（使用Token文件中的前{_ReportReadtokenLine}行Token）",
 )
 @click.option(
     "--work-id",
@@ -303,7 +304,7 @@ def collect_work(obj: dict, work_id: tuple):
 @click.option("--report-describe", "-d", required=True, help="举报理由")
 @click.pass_obj
 def report_work(obj: dict, work_id: tuple, report_reason: str, report_describe: str):
-    """批量举报一个或多个作品（每个作品默认使用Token文件中的前20行Token）"""
+    """批量举报一个或多个作品（默认使用Token文件中的前20行Token）"""
     token_file = obj["token_file"]
     if input("警告：这是一个高危功能，请确保你知道你在做什么，这可能对他人造成严重的损失！包括但不限于：作品消失、作品被删除等[y/N]").lower() == "y":
         for wid in _parse_ids(work_id):
