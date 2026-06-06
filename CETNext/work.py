@@ -1,6 +1,14 @@
 """
 作品
 """
+# 版权所有 (C) 2026 Argon
+# 根据 Apache 2.0 许可证发布
+#
+# 修改声明：
+# 本文件基于原作者 WangZixu（2025）的作品修改而来。
+# 主要修改内容：
+# 加入新功能
+# 修改日期：2026-06-06
 
 import json
 import logging
@@ -20,6 +28,21 @@ def GetUserWork(UserID: str) -> str | bool:
     """获取用户所有的作品"""
     response = GetWithoutTokenAPI(
         f"/creation-tools/v2/user/center/work-list?type=newest&user_id={UserID}&offset=0&limit=1000"
+    )
+    if response.status_code == 200:
+        ids = [str(item["id"]) for item in json.loads(response.text)["items"]]
+        return ids
+    else:
+        logger.error(
+            f"请求失败，状态码: {response.status_code}, 响应: {response.text[:100]}"
+        )
+        return False
+
+
+def GetStudioWork(StudioID: str) -> str | bool:
+    """获取工作室所有的作品"""
+    response = GetWithoutTokenAPI(
+        f"/web/works/subjects/{StudioID}/works?&offset=0&limit=200&sort=-created_at,-id"
     )
     if response.status_code == 200:
         ids = [str(item["id"]) for item in json.loads(response.text)["items"]]

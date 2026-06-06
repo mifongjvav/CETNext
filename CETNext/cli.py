@@ -10,11 +10,14 @@
 # 使用 click.option 和 click.pass_context 替代 argparse.ArgumentParser
 # 将全局参数 --token-file 通过上下文对象传递给子命令
 # 修改 __main__.py 入口调用方式
+# 加入新功能
 # 修改日期：2026-05-05
+# 新增功能：支持 --wid / --user-id 传入逗号分隔、JSON数组、Python列表格式
 
 import click
 import json
 import logging
+import ast
 
 from . import __version__, student_names
 from .user import (
@@ -25,6 +28,7 @@ from .user import (
 )
 from .work import (
     GetUserWork as _GetUserWork,
+    GetStudioWork as _GetStudioWork,
     LikeWork as _LikeWork,
     LikeReview as _LikeReview,
     CollectionWork as _CollectionWork,
@@ -45,6 +49,50 @@ from .edu import (
 from .api import set_default_headless
 
 logger = logging.getLogger(__name__)
+
+def _parse_ids(ids_tuple):
+    """
+    将click的multiple元组解析为ID列表。
+    支持以下格式：
+    - 多次使用选项：--id 1 --id 2 -> [1,2]
+    - 逗号分隔：--id 1,2,3 -> [1,2,3]
+    - JSON数组：--id [1,2,3] -> [1,2,3]
+    - Python列表：--id ['1','2','3'] -> ['1','2','3']
+    """
+    if not ids_tuple:
+        return []
+    # 如果用户多次使用了该选项，直接返回所有值
+    if len(ids_tuple) > 1:
+        return list(ids_tuple)
+
+    s = ids_tuple[0].strip()
+    if not s:
+        return []
+
+    # 尝试解析为 Python 列表（支持单引号）
+    if s.startswith("[") and s.endswith("]"):
+        try:
+            parsed = ast.literal_eval(s)
+            if isinstance(parsed, list):
+                return [str(item) for item in parsed]
+        except Exception:
+            pass
+        # 回退到 JSON 解析（双引号）
+        try:
+            parsed = json.loads(s)
+            if isinstance(parsed, list):
+                return [str(item) for item in parsed]
+        except Exception:
+            pass
+
+    # 尝试按逗号分隔（同时移除每个元素两边的引号）
+    if "," in s:
+        parts = [p.strip().strip("'\"") for p in s.split(",") if p.strip()]
+        if parts:
+            return parts
+
+    # 最后作为单个ID
+    return [s]
 
 
 # ------------------------------------------------------------
@@ -77,7 +125,7 @@ def cli(ctx: click.Context, token_file: str, headless: bool):
 
 
 # ------------------------------------------------------------
-# 1. 用户相关命令
+# 用户相关命令
 # ------------------------------------------------------------
 @cli.command("check-token")
 @click.pass_obj
@@ -116,13 +164,17 @@ def signature(obj: dict):
 
 @cli.command("follow-user")
 @click.option(
-    "--user-id", "-uid", required=True, multiple=True, help="训练师编号（可多次使用）"
+    "--user-id",
+    "-uid",
+    required=True,
+    multiple=True,
+    help="训练师编号（可多次使用，也支持逗号分隔或JSON/Python列表）",
 )
 @click.pass_obj
 def follow_user(obj: dict, user_id: tuple):
     """批量关注一个或多个用户（每个用户使用Token文件中所有Token关注）"""
     token_file = obj["token_file"]
-    for uid in user_id:
+    for uid in _parse_ids(user_id):
         click.echo(f"请稍后，正在执行：{uid}")
         if _FollowUser(token_file, uid):
             click.echo(f"关注 {uid} 执行成功")
@@ -132,32 +184,59 @@ def follow_user(obj: dict, user_id: tuple):
 
 
 # ------------------------------------------------------------
-# 2. 作品相关命令
+# 作品相关命令
 # ------------------------------------------------------------
 @cli.command("get-work")
 @click.option(
-    "--user-id", "-uid", required=True, multiple=True, help="训练师编号（可多次使用）"
+    "--user-id",
+    "-uid",
+    required=True,
+    multiple=True,
+    help="训练师编号（可多次使用，也支持逗号分隔或JSON/Python列表）",
 )
 def get_work(user_id: tuple):
     """获取一个或多个用户的所有作品ID"""
-    for uid in user_id:
+    for uid in _parse_ids(user_id):
         click.echo(f"请稍后，正在执行：{uid}")
         work_ids = _GetUserWork(uid)
         if work_ids:
-            click.echo(f"用户 {uid} 的作品列表：{work_ids}")
+            click.echo(f"用户 {uid} 的作品列表：{work_ids} 共 {len(work_ids)} 个")
         else:
             click.echo(f"获取用户 {uid} 作品失败", err=True)
 
 
+@cli.command("get-studio-work")
+@click.option(
+    "--studio-id",
+    "-sid",
+    required=True,
+    multiple=True,
+    help="工作室编号（可多次使用，也支持逗号分隔或JSON/Python列表）",
+)
+def get_studio_work(studio_id: tuple):
+    """获取一个或多个工作室的所有作品ID"""
+    for sid in _parse_ids(studio_id):
+        click.echo(f"请稍后，正在执行：{sid}")
+        work_ids = _GetStudioWork(sid)
+        if work_ids:
+            click.echo(f"工作室 {sid} 的作品列表：{work_ids} 共 {len(work_ids)} 个")
+        else:
+            click.echo(f"获取工作室 {sid} 作品失败", err=True)
+
+
 @cli.command("like-work")
 @click.option(
-    "--work-id", "-wid", required=True, multiple=True, help="作品ID（可多次使用）"
+    "--work-id",
+    "-wid",
+    required=True,
+    multiple=True,
+    help="作品ID（可多次使用，也支持逗号分隔或JSON/Python列表）",
 )
 @click.pass_obj
 def like_work(obj: dict, work_id: tuple):
     """批量点赞一个或多个作品（使用Token文件中所有Token）"""
     token_file = obj["token_file"]
-    for wid in work_id:
+    for wid in _parse_ids(work_id):
         click.echo(f"请稍后，正在执行：{wid}")
         if _LikeWork(token_file, wid):
             click.echo(f"点赞 {wid} 执行成功")
@@ -169,13 +248,17 @@ def like_work(obj: dict, work_id: tuple):
 @cli.command("like-review")
 @click.option("--work-id", "-wid", required=True, help="作品ID")
 @click.option(
-    "--comment-id", "-cid", required=True, multiple=True, help="评论ID（可多次使用）"
+    "--comment-id",
+    "-cid",
+    required=True,
+    multiple=True,
+    help="评论ID（可多次使用，也支持逗号分隔或JSON/Python列表）",
 )
 @click.pass_obj
 def like_review(obj: dict, work_id: str, comment_id: tuple):
     """批量点赞一个作品下的多个评论（使用Token文件中所有Token）"""
     token_file = obj["token_file"]
-    for cid in comment_id:
+    for cid in _parse_ids(comment_id):
         click.echo(f"请稍后，正在执行：{cid}")
         if _LikeReview(token_file, work_id, cid):
             click.echo(f"点赞评论 {cid} 执行成功")
@@ -186,13 +269,17 @@ def like_review(obj: dict, work_id: str, comment_id: tuple):
 
 @cli.command("collect-work")
 @click.option(
-    "--work-id", "-wid", required=True, multiple=True, help="作品ID（可多次使用）"
+    "--work-id",
+    "-wid",
+    required=True,
+    multiple=True,
+    help="作品ID（可多次使用，也支持逗号分隔或JSON/Python列表）",
 )
 @click.pass_obj
 def collect_work(obj: dict, work_id: tuple):
     """批量收藏一个或多个作品（使用Token文件中所有Token）"""
     token_file = obj["token_file"]
-    for wid in work_id:
+    for wid in _parse_ids(work_id):
         click.echo(f"请稍后，正在执行：{wid}")
         if _CollectionWork(token_file, wid):
             click.echo(f"收藏 {wid} 执行成功")
@@ -203,10 +290,14 @@ def collect_work(obj: dict, work_id: tuple):
 
 @cli.command(
     "report-work",
-    help=f"批量举报一个或多个作品（每个作品使用Token文件中的前{_ReportReadtokenLine}行Token）",
+    help=f"批量举报一个或多个作品（每个作品使用Token文件中的前{_ReportReadtokenLine}行Token）。作品ID支持逗号分隔、JSON或Python列表。",
 )
 @click.option(
-    "--work-id", "-wid", required=True, multiple=True, help="作品ID（可多次使用）"
+    "--work-id",
+    "-wid",
+    required=True,
+    multiple=True,
+    help="作品ID（可多次使用，也支持逗号分隔或JSON/Python列表）",
 )
 @click.option("--report-reason", "-r", required=True, help="原因")
 @click.option("--report-describe", "-d", required=True, help="举报理由")
@@ -214,18 +305,23 @@ def collect_work(obj: dict, work_id: tuple):
 def report_work(obj: dict, work_id: tuple, report_reason: str, report_describe: str):
     """批量举报一个或多个作品（每个作品默认使用Token文件中的前20行Token）"""
     token_file = obj["token_file"]
-    for wid in work_id:
-        click.echo(f"请稍后，正在执行：{wid}")
-        if _ReportWork(token_file, wid, report_reason, report_describe):
-            click.echo(f"举报 {wid} 执行成功")
-        else:
-            click.echo(f"举报 {wid} 执行失败", err=True)
-            raise click.Abort()
+    if input("警告：这是一个高危功能，请确保你知道你在做什么，这可能对他人造成严重的损失！包括但不限于：作品消失、作品被删除等[y/N]").lower() == "y":
+        for wid in _parse_ids(work_id):
+            click.echo(f"请稍后，正在执行：{wid}")
+            if _ReportWork(token_file, wid, report_reason, report_describe):
+                click.echo(f"举报 {wid} 执行成功")
+            else:
+                click.echo(f"举报 {wid} 执行失败", err=True)
+                raise click.Abort()
 
 
 @cli.command("review-work")
 @click.option(
-    "--work-id", "-wid", required=True, multiple=True, help="作品ID（可多次使用）"
+    "--work-id",
+    "-wid",
+    required=True,
+    multiple=True,
+    help="作品ID（可多次使用，也支持逗号分隔或JSON/Python列表）",
 )
 @click.option(
     "--review-text",
@@ -238,7 +334,8 @@ def report_work(obj: dict, work_id: tuple, report_reason: str, report_describe: 
 def review_work(obj: dict, work_id: tuple, review_text: tuple):
     """在一个或多个作品下批量发送评论（每个作品发送所有评论内容）"""
     token_file = obj["token_file"]
-    for wid in work_id:
+    work_ids = _parse_ids(work_id)
+    for wid in work_ids:
         for text in review_text:
             click.echo(f"请稍后，正在执行：{wid} | 发送内容：{text}")
             if _SendReviewToWork(token_file, wid, text):
@@ -291,13 +388,17 @@ def view_work(one_token: str, work_id: str):
 
 @cli.command("fork-work")
 @click.option(
-    "--work-id", "-wid", required=True, multiple=True, help="作品ID（可多次使用）"
+    "--work-id",
+    "-wid",
+    required=True,
+    multiple=True,
+    help="作品ID（可多次使用，也支持逗号分隔或JSON/Python列表）",
 )
 @click.pass_obj
 def fork_work(obj: dict, work_id: tuple):
     """再创作一个或多个作品（使用Token文件中所有Token）"""
     token_file = obj["token_file"]
-    for wid in work_id:
+    for wid in _parse_ids(work_id):
         click.echo(f"请稍后，正在执行：{wid}")
         if _ForkWork(token_file, wid):
             click.echo(f"再创作 {wid} 执行成功")
@@ -307,7 +408,7 @@ def fork_work(obj: dict, work_id: tuple):
 
 
 # ------------------------------------------------------------
-# 3. Edu相关命令
+# Edu相关命令
 # ------------------------------------------------------------
 @cli.command("create-class")
 @click.option("--token", "-t", required=True, help="Edu Token")
@@ -400,7 +501,7 @@ def login_edu(input_xlsx: str, signature_user: bool, output_txt: str):
 
 
 # ------------------------------------------------------------
-# 4. 版本命令
+# 其它命令
 # ------------------------------------------------------------
 @cli.command("version")
 def version():
@@ -409,6 +510,5 @@ def version():
     click.echo("https://github.com/mifongjvav/CETNext/")
 
 
-# 导出主组，便于外部调用
 if __name__ == "__main__":
     cli()

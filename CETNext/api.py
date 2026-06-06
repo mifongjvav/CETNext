@@ -113,9 +113,7 @@ def _worker(headless: bool = None):
                         "headers": headers or {},
                         "timeout": 30000,
                     }
-                    if (
-                        post_data is not None
-                    ):  # 当 post_data 是 {} 时，条件为 True，执行
+                    if post_data is not None:
                         request_options["data"] = json.dumps(
                             post_data, ensure_ascii=False
                         )
@@ -125,7 +123,12 @@ def _worker(headless: bool = None):
                     status_code = response.status
                     response_text = response.text()
                     logger.debug(f"请求完成，状态码: {status_code}")
-                    logger.debug(f"请求完成，返回: {response_text}")
+
+                    # 记录非 200 状态码的内容
+                    if status_code != 200:
+                        logger.warning(
+                            f"非 200 状态码: {status_code}, 返回内容预览: {response_text[:500]}"
+                        )
 
                     # 检查 WAF 拦截
                     if (
@@ -136,14 +139,26 @@ def _worker(headless: bool = None):
                         logger.info(f"请求成功: {status_code}")
                         break
 
-                    logger.warning(f"请求被WAF拦截，重试 {i + 1}/{retry}")
+                    logger.warning(
+                        f"请求被 WAF 拦截，状态码: {status_code}, 返回内容预览: {response_text[:500]}"
+                    )
                     time.sleep((i + 1) * 2)
 
                 except PlaywrightTimeoutError:
                     logger.warning(f"请求超时，重试 {i + 1}/{retry}")
                     time.sleep((i + 1) * 2)
                 except Exception as e:
-                    logger.warning(f"请求异常: {e}，重试 {i + 1}/{retry}")
+                    # 尝试从异常中提取响应内容
+                    error_msg = str(e)
+                    response_preview = ""
+                    if hasattr(e, "response") and e.response:
+                        try:
+                            response_preview = e.response.text()[:500]
+                        except Exception:
+                            response_preview = "<无法读取响应内容>"
+                    logger.warning(
+                        f"请求异常: {error_msg}, 响应预览: {response_preview}, 重试 {i + 1}/{retry}"
+                    )
                     time.sleep((i + 1) * 2)
                 finally:
                     if page:
