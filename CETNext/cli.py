@@ -11,7 +11,7 @@
 # 将全局参数 --token-file 通过上下文对象传递给子命令
 # 修改 __main__.py 入口调用方式
 # 加入新功能
-# 修改日期：2026-05-05
+# 修改日期：2026-06-07
 # 新增功能：支持 --wid / --user-id 传入逗号分隔、JSON数组、Python列表格式
 
 import click
@@ -49,6 +49,7 @@ from .edu import (
 from .api import set_default_headless
 
 logger = logging.getLogger(__name__)
+
 
 def _parse_ids(ids_tuple):
     """
@@ -306,7 +307,12 @@ def collect_work(obj: dict, work_id: tuple):
 def report_work(obj: dict, work_id: tuple, report_reason: str, report_describe: str):
     """批量举报一个或多个作品（默认使用Token文件中的前20行Token）"""
     token_file = obj["token_file"]
-    if input("警告：这是一个高危功能，请确保你知道你在做什么，这可能对他人造成严重的损失！包括但不限于：作品消失、作品被删除等[y/N]").lower() == "y":
+    if (
+        input(
+            "警告：这是一个高危功能，请确保你知道你在做什么，这可能对他人造成严重的损失！包括但不限于：作品消失、作品被删除等[y/N]"
+        ).lower()
+        == "y"
+    ):
         for wid in _parse_ids(work_id):
             click.echo(f"请稍后，正在执行：{wid}")
             if _ReportWork(token_file, wid, report_reason, report_describe):

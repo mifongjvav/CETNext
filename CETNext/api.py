@@ -9,25 +9,27 @@ API调用
 # 主要修改内容：
 # 将 requests 改为 playwright
 # 将 UA 改为常量
-# 优化史山
-# 修改日期：2026-05-05
+# 将同步实现改为异步实现
+# 修改日期：2026-06-07
 
 import logging
 import atexit
-import time
+import asyncio
 import json
 import threading
-import queue
-import uuid
-from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeoutError
+from concurrent.futures import TimeoutError as FutureTimeoutError
+from playwright.async_api import (
+    async_playwright,
+    TimeoutError as PlaywrightTimeoutError,
+)
 
 _browser = None
 _context = None
 _playwright = None
-
-_request_queue = queue.Queue()
-_response_queues = {}
-_worker_thread = None
+_loop = None
+_loop_thread = None
+_loop_ready = threading.Event()
+_loop_lock = threading.Lock()
 _browser_ready = threading.Event()
 
 logger = logging.getLogger(__name__)
@@ -47,17 +49,20 @@ def set_default_headless(value: bool):
     _default_headless = value
 
 
-def _init_browser(headless: bool = None):
+async def _init_browser(headless: bool = None):
     global _playwright, _browser, _context
+
     if _browser is not None:
-        _browser_ready.set()
         return
+
+    if headless is None:
+        headless = _default_headless
 
     try:
         logger.info("正在启动 Playwright...")
-        _playwright = sync_playwright().start()
+        _playwright = await async_playwright().start()
         logger.info("正在启动 Chromium 浏览器...")
-        _browser = _playwright.chromium.launch(
+        _browser = await _playwright.chromium.launch(
             headless=headless,
             args=[
                 "--disable-blink-features=AutomationControlled",
@@ -66,13 +71,13 @@ def _init_browser(headless: bool = None):
             ],
         )
         logger.info("正在创建浏览器上下文...")
-        _context = _browser.new_context(
+        _context = await _browser.new_context(
             user_agent=USER_AGENT,
             viewport={"width": 1920, "height": 1080},
             locale="zh-CN",
             timezone_id="Asia/Shanghai",
         )
-        _context.add_init_script("""
+        await _context.add_init_script("""
             Object.defineProperty(navigator, 'webdriver', { get: () => false });
             Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3, 4, 5] });
             Object.defineProperty(navigator, 'languages', { get: () => ['zh-CN', 'zh', 'en'] });
@@ -86,129 +91,176 @@ def _init_browser(headless: bool = None):
         raise
 
 
-def _worker(headless: bool = None):
-    global _context, _browser, _playwright
-    _init_browser(headless)
-    try:
-        while True:
-            logger.debug("Worker 等待任务...")
-            task = _request_queue.get()
-            if task is None:
-                logger.info("Worker 收到退出信号")
+async def _request_async(
+    method, url, headers=None, retry=3, headless: bool = None, **kwargs
+):
+    global _context, _browser
+
+    if headless is None:
+        headless = _default_headless
+
+    # 确保浏览器已初始化
+    if _browser is None:
+        await _init_browser(headless)
+
+    if _browser is None or _context is None:
+        raise RuntimeError("浏览器初始化失败")
+
+    result = None
+    post_data = kwargs.get("json")
+
+    for i in range(retry):
+        page = None
+        try:
+            logger.debug(f"第 {i + 1} 次尝试: 创建新页面")
+            page = await _context.new_page()
+            logger.debug("新页面已创建，正在发起请求")
+
+            request_options = {
+                "method": method,
+                "headers": headers or {},
+                "timeout": 30000,
+            }
+            if post_data is not None:
+                request_options["data"] = json.dumps(post_data, ensure_ascii=False)
+                request_options["headers"]["Content-Type"] = "application/json"
+
+            response = await page.request.fetch(url, **request_options)
+            status_code = response.status
+            response_text = await response.text()
+            logger.debug(f"请求完成，状态码: {status_code}")
+
+            if status_code != 200:
+                logger.warning(
+                    f"非 200 状态码: {status_code}, 返回内容预览: {response_text[:500]}"
+                )
+
+            if "renderData" not in response_text and "aliyun_waf" not in response_text:
+                result = PlaywrightResponse(status_code, response_text, url)
+                logger.info(f"请求成功: {status_code}")
                 break
 
-            request_id, method, url, headers, retry, post_data = task
-            logger.info(f"处理请求 [{request_id[:8]}] {method} {url}")
-            result = None
+            logger.warning(
+                f"请求被 WAF 拦截，状态码: {status_code}, 返回内容预览: {response_text[:500]}"
+            )
+            await asyncio.sleep((i + 1) * 2)
 
-            for i in range(retry):
-                page = None
+        except PlaywrightTimeoutError:
+            logger.warning(f"请求超时，重试 {i + 1}/{retry}")
+            await asyncio.sleep((i + 1) * 2)
+        except Exception as e:
+            error_msg = str(e)
+            response_preview = ""
+            if hasattr(e, "response") and e.response:
                 try:
-                    logger.debug(f"第 {i + 1} 次尝试: 创建新页面")
-                    page = _context.new_page()
-                    logger.debug("新页面已创建，正在发起请求")
+                    response_preview = await e.response.text()
+                    response_preview = response_preview[:500]
+                except Exception:
+                    response_preview = "<无法读取响应内容>"
+            logger.warning(
+                f"请求异常: {error_msg}, 响应预览: {response_preview}, 重试 {i + 1}/{retry}"
+            )
+            await asyncio.sleep((i + 1) * 2)
+        finally:
+            if page:
+                try:
+                    await page.close()
+                    logger.debug("页面已关闭")
+                except Exception:
+                    pass
 
-                    request_options = {
-                        "method": method,
-                        "headers": headers or {},
-                        "timeout": 30000,
-                    }
-                    if post_data is not None:
-                        request_options["data"] = json.dumps(
-                            post_data, ensure_ascii=False
-                        )
-                        request_options["headers"]["Content-Type"] = "application/json"
+    return result
 
-                    response = page.request.fetch(url, **request_options)
-                    status_code = response.status
-                    response_text = response.text()
-                    logger.debug(f"请求完成，状态码: {status_code}")
 
-                    # 记录非 200 状态码的内容
-                    if status_code != 200:
-                        logger.warning(
-                            f"非 200 状态码: {status_code}, 返回内容预览: {response_text[:500]}"
-                        )
+async def _close_browser_async():
+    global _context, _browser, _playwright
+    logger.info("正在关闭浏览器…")
+    if _context:
+        try:
+            await _context.close()
+        except Exception:
+            pass
+    if _browser:
+        try:
+            await _browser.close()
+        except Exception:
+            pass
+    if _playwright:
+        try:
+            await _playwright.stop()
+        except Exception:
+            pass
 
-                    # 检查 WAF 拦截
-                    if (
-                        "renderData" not in response_text
-                        and "aliyun_waf" not in response_text
-                    ):
-                        result = PlaywrightResponse(status_code, response_text, url)
-                        logger.info(f"请求成功: {status_code}")
-                        break
+    _context = _browser = _playwright = None
+    _browser_ready.clear()
 
-                    logger.warning(
-                        f"请求被 WAF 拦截，状态码: {status_code}, 返回内容预览: {response_text[:500]}"
-                    )
-                    time.sleep((i + 1) * 2)
 
-                except PlaywrightTimeoutError:
-                    logger.warning(f"请求超时，重试 {i + 1}/{retry}")
-                    time.sleep((i + 1) * 2)
+def _run_loop():
+    global _loop
+    asyncio.set_event_loop(_loop)
+    _loop_ready.set()
+    try:
+        _loop.run_forever()
+    except Exception as e:
+        logger.error(f"事件循环异常: {e}")
+
+
+def _start_loop(headless: bool = None):
+    global _loop, _loop_thread
+    with _loop_lock:
+        if _loop_thread is not None and _loop_thread.is_alive() and _loop is not None:
+            # 事件循环已经运行，直接等待浏览器就绪或继续初始化
+            if not _browser_ready.is_set():
+                future = asyncio.run_coroutine_threadsafe(
+                    _init_browser(headless), _loop
+                )
+                try:
+                    future.result(timeout=120)
                 except Exception as e:
-                    # 尝试从异常中提取响应内容
-                    error_msg = str(e)
-                    response_preview = ""
-                    if hasattr(e, "response") and e.response:
-                        try:
-                            response_preview = e.response.text()[:500]
-                        except Exception:
-                            response_preview = "<无法读取响应内容>"
-                    logger.warning(
-                        f"请求异常: {error_msg}, 响应预览: {response_preview}, 重试 {i + 1}/{retry}"
-                    )
-                    time.sleep((i + 1) * 2)
-                finally:
-                    if page:
-                        try:
-                            page.close()
-                            logger.debug("页面已关闭")
-                        except Exception:
-                            pass
+                    logger.error(f"浏览器初始化失败: {e}")
+                    raise
+            return
 
-            if request_id in _response_queues:
-                _response_queues[request_id].put(result)
-                logger.debug(f"结果已返回给请求者 [{request_id[:8]}]")
-    finally:
-        logger.info("正在关闭浏览器…")
-        if _context:
-            try:
-                _context.close()
-            except Exception:
-                pass
-        if _browser:
-            try:
-                _browser.close()
-            except Exception:
-                pass
-        if _playwright:
-            try:
-                _playwright.stop()
-            except Exception:
-                pass
-        _context = _browser = _playwright = None
-        _browser_ready.clear()
+        # 创建新的事件循环
+        _loop = asyncio.new_event_loop()
+        if hasattr(asyncio, "WindowsSelectorEventLoopPolicy"):
+            asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
+        _loop_ready.clear()
+        _loop_thread = threading.Thread(target=_run_loop, daemon=True)
+        _loop_thread.start()
 
-def _start_worker(headless: bool = None):
-    global _worker_thread
-    if _worker_thread is None or not _worker_thread.is_alive():
-        _worker_thread = threading.Thread(target=_worker, args=(headless,), daemon=True)
-        _worker_thread.start()
-        if not _browser_ready.wait(timeout=30):
-            raise RuntimeError("浏览器启动超时")
-        if _browser is None:
-            raise RuntimeError("浏览器初始化失败")
+        if not _loop_ready.wait(timeout=30):
+            raise RuntimeError("事件循环启动超时")
+
+        # 初始化浏览器
+        future = asyncio.run_coroutine_threadsafe(_init_browser(headless), _loop)
+        try:
+            future.result(timeout=120)
+        except Exception as e:
+            logger.error(f"浏览器初始化失败: {e}")
+            raise
 
 
 def _close_browser():
-    global _worker_thread
-    if _request_queue:
-        _request_queue.put(None)
-    if _worker_thread and _worker_thread.is_alive():
-        _worker_thread.join(timeout=10)
+    global _loop, _loop_thread
+    if _loop is None:
+        return
+
+    try:
+        future = asyncio.run_coroutine_threadsafe(_close_browser_async(), _loop)
+        future.result(timeout=30)
+    except Exception as exc:
+        logger.warning(f"关闭浏览器时发生异常: {exc}")
+    finally:
+        with _loop_lock:
+            if _loop and _loop.is_running():
+                _loop.call_soon_threadsafe(_loop.stop)
+            if _loop_thread and _loop_thread.is_alive():
+                _loop_thread.join(timeout=10)
+            _loop = None
+            _loop_thread = None
+            _loop_ready.clear()
 
 
 class PlaywrightResponse:
@@ -235,21 +287,23 @@ class PlaywrightResponse:
 
 
 def _request(method, url, headers=None, retry=3, headless: bool = None, **kwargs):
-    _start_worker(headless)
+    _start_loop(headless)
     post_data = kwargs.get("json")
-    request_id = str(uuid.uuid4())
-    result_queue = queue.Queue()
-    _response_queues[request_id] = result_queue
-    _request_queue.put((request_id, method, url, headers, retry, post_data))
+    future = asyncio.run_coroutine_threadsafe(
+        _request_async(
+            method, url, headers=headers, retry=retry, headless=headless, json=post_data
+        ),
+        _loop,
+    )
 
     try:
-        result = result_queue.get(timeout=60)
-    except queue.Empty:
+        return future.result(timeout=60)
+    except FutureTimeoutError:
         logger.error(f"主线程等待超时: {method} {url}")
-        result = None
-    finally:
-        _response_queues.pop(request_id, None)
-    return result
+        return None
+    except Exception as exc:
+        logger.error(f"请求执行失败: {exc}", exc_info=True)
+        return None
 
 
 def get_headers(token=None, include_auth=True):
@@ -274,7 +328,7 @@ def GetAPI(Path, Token, headless=None):
     if headless is None:
         headless = _default_headless
     return _request(
-        "GET", f"https://api.codemao.cn{Path}", get_headers(Token), headless
+        "GET", f"https://api.codemao.cn{Path}", get_headers(Token), headless=headless
     )
 
 
@@ -285,7 +339,7 @@ def GetWithoutTokenAPI(Path, headless=None):
         "GET",
         f"https://api.codemao.cn{Path}",
         get_headers(include_auth=False),
-        headless,
+        headless=headless,
     )
 
 
