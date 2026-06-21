@@ -21,7 +21,8 @@ GitHub: https://github.com/mifongjvav/CETNext
 # 将全局参数 --token-file 通过上下文对象传递给子命令
 # 修改 __main__.py 入口调用方式
 # 加入新功能
-# 修改日期：2026-06-06
+# 新增功能：支持用户搜索
+# 修改日期：2026-06-21
 
 from importlib.metadata import version, PackageNotFoundError
 
@@ -177,6 +178,9 @@ _LAZY_IMPORTS = {
     "CreateStudentOnEdu": (".edu", "CreateStudentOnEdu"),
     "MergeStudentXls": (".edu", "MergeStudentXls"),
     "LoginUseEdu": (".edu", "LoginUseEdu"),
+    # 搜索用户
+    "search_user": (".search_user", "search_user"),
+    "download_user_list": (".search_user", "download_user_list"),
 }
 
 # 请在创建新功能后更新此处！导入控制
@@ -218,6 +222,9 @@ __all__ = [
     "CreateStudentOnEdu",
     "MergeStudentXls",
     "LoginUseEdu",
+    # 搜索用户
+    "search_user",
+    "download_user_list",
 ]
 
 
