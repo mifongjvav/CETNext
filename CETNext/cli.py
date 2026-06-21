@@ -11,13 +11,16 @@
 # 将全局参数 --token-file 通过上下文对象传递给子命令
 # 修改 __main__.py 入口调用方式
 # 加入新功能
-# 修改日期：2026-06-07
+# 新增功能：支持用户搜索
+# 修复错别字
+# 修改日期：2026-06-21
 # 新增功能：支持 --wid / --user-id 传入逗号分隔、JSON数组、Python列表格式
 
 import click
 import json
 import logging
 import ast
+import os
 
 from . import __version__, student_names
 from .user import (
@@ -47,6 +50,10 @@ from .edu import (
     LoginUseEdu as _LoginUseEdu,
 )
 from .api import set_default_headless
+from .search_user import (
+    search_user as _SearchUser,
+    download_user_list as _DownloadUserList,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -515,6 +522,27 @@ def version():
     """获取CET版本"""
     click.echo(f"CET版本: v{__version__}")
     click.echo("https://github.com/mifongjvav/CETNext/")
+
+
+# ------------------------------------------------------------
+# 用户搜索命令
+# ------------------------------------------------------------
+@cli.command("search-user")
+@click.option("--nickname", "-n", default=None, required=True, help="用户昵称")
+def search_user(nickname: str):
+    """搜索用户"""
+    if nickname is None:
+        _DownloadUserList()
+    if not os.path.exists("user_list/index.json"):
+        click.echo("用户列表未下载或索引缺失，请先使用 cetnext search-user 命令下载用户列表", err=True)
+        raise click.Abort()
+    search_user_list = _SearchUser(nickname)
+    if search_user_list:
+        click.echo(f"搜索到 {len(search_user_list)} 个用户")
+        for user in search_user_list:
+            click.echo(f"在{user[3]}.json中，用户ID: {user[0]}, 昵称: {user[1]}, 描述: {user[2]}")
+    else:
+        click.echo("未搜索到任何用户")
 
 
 if __name__ == "__main__":
