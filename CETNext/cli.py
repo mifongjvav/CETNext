@@ -12,6 +12,7 @@
 # 修改 __main__.py 入口调用方式
 # 加入新功能
 # 新增功能：支持用户搜索
+# 修复错别字
 # 修改日期：2026-06-21
 # 新增功能：支持 --wid / --user-id 传入逗号分隔、JSON数组、Python列表格式
 
@@ -533,7 +534,7 @@ def search_user(nickname: str):
     if nickname is None:
         _DownloadUserList()
     if not os.path.exists("user_list/index.json"):
-        click.echo("用户列表未下载或索引缺失，请先使用--download-user-list命令下载用户列表", err=True)
+        click.echo("用户列表未下载或索引缺失，请先使用 cetnext search-user 命令下载用户列表", err=True)
         raise click.Abort()
     search_user_list = _SearchUser(nickname)
     if search_user_list:
