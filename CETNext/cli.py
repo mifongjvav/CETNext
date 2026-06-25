@@ -533,6 +533,7 @@ def search_user(nickname: str):
     """搜索用户"""
     if nickname is None:
         _DownloadUserList()
+        return
     if not os.path.exists("user_list/index.json"):
         click.echo("用户列表未下载或索引缺失，请先使用 cetnext search-user 命令下载用户列表", err=True)
         raise click.Abort()

@@ -1,6 +1,6 @@
 [project]
 name = "cetnext"
-version = "1.2.0"
+version = "1.2.1"
 description = '为编程猫社区的"老师"们提供CodemaoEDUTools的打赢复活赛版，且用且珍惜'
 readme = "README.md"
 license = "Apache-2.0"
